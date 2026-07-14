@@ -35,7 +35,7 @@ In one sentence:
 
 **Paxos places complexity in leader changes and history recovery, using a more general and mathematically oriented mechanism to guarantee consistency. Raft places complexity in continuous leader management and log replication, using stronger constraints to achieve a simpler engineering implementation.**
 
-This is also why, after completing the CS7210 Paxos project and then reading the MIT 6.5840 Raft implementation, the difference feels so noticeable. Many Raft rules—only one leader, continuous logs, and the requirement that a node with a stale log cannot become leader—can look like restrictions on flexibility. But those restrictions exist precisely to avoid the thousands of lines of recovery logic that appear in a Paxos implementation.
+This is also why, after completing the CS7xx0 Paxos project and then reading the MIT 6.5840 Raft implementation, the difference feels so noticeable. Many Raft rules—only one leader, continuous logs, and the requirement that a node with a stale log cannot become leader—can look like restrictions on flexibility. But those restrictions exist precisely to avoid the thousands of lines of recovery logic that appear in a Paxos implementation.
 
 In a sense, Raft can be understood as:
 
@@ -695,7 +695,7 @@ In one sentence:
 
 # 2. ShardKV
 
-## 2.1 What Go Lab 5 and CS7210 Lab 4 Implement
+## 2.1 What Go Lab 5 and CS7xx0 Lab 4 Implement
 
 Go Lab 5 is fundamentally about implementing a **Raft-backed sharded KV storage system**. It is not simply a KV server. Instead, the entire key space is divided into multiple shards, and different replica groups are responsible for different shards. The system has two main types of components. The first is `shardctrler`, which maintains the configuration that determines which group is responsible for which shards. The second is `shardkv`, which actually stores data and executes `Get`, `Put`, and `Append` operations.
 
@@ -703,23 +703,23 @@ When a group joins or leaves, or when shards need to move between groups, `shard
 
 The advantage of this design is that many consistency problems are reduced to a single problem: as long as replicas agree on the Raft log order and execute the same log entries deterministically, they will reach the same state.
 
-CS7210 Lab 4, by contrast, implements a **Paxos-backed sharded KV storage system**, with cross-shard and cross-group transaction processing added in the later part of the project. It also has the concepts of a shard master and shard stores, and it must also handle shard ownership, configuration changes, data migration, and client requests. However, its underlying consensus mechanism is Paxos rather than Raft.
+CS7xx0 Lab 4, by contrast, implements a **Paxos-backed sharded KV storage system**, with cross-shard and cross-group transaction processing added in the later part of the project. It also has the concepts of a shard master and shard stores, and it must also handle shard ownership, configuration changes, data migration, and client requests. However, its underlying consensus mechanism is Paxos rather than Raft.
 
 This means that the system does not naturally begin with a strong leader maintaining one continuous log. Instead, Paxos slots determine where operations are placed. Each slot must become chosen before replicas can execute operations in slot order. Because Paxos slots may be empty, accepted, chosen, or part of a hole, the Java implementation contains more explicit state management: which slots have been chosen, which slots are waiting to execute, which shards are being received, which shards are being sent out, which requests have completed, and which transactions are in the prepare or commit phase.
 
-Once transactions are introduced, CS7210 Lab 4 adds Two-Phase Commit. If a transaction involves multiple shards or groups, it cannot simply finish on one shard and stop there. All participants must first prepare and confirm that they can execute the transaction. Only then can they commit together. If one participant fails or refuses, the transaction must abort.
+Once transactions are introduced, CS7xx0 Lab 4 adds Two-Phase Commit. If a transaction involves multiple shards or groups, it cannot simply finish on one shard and stop there. All participants must first prepare and confirm that they can execute the transaction. Only then can they commit together. If one participant fails or refuses, the transaction must abort.
 
 In one sentence:
 
-**Go Lab 5 implements sharded KV storage, configuration changes, and shard migration under Raft ordering. CS7210 Lab 4 implements sharded KV storage, configuration changes, shard migration, and cross-shard transactions under Paxos ordering.**
+**Go Lab 5 implements sharded KV storage, configuration changes, and shard migration under Raft ordering. CS7xx0 Lab 4 implements sharded KV storage, configuration changes, shard migration, and cross-shard transactions under Paxos ordering.**
 
-Go Lab 5 is more focused on teaching how a Raft-backed replicated state machine can be extended to support sharding. CS7210 Lab 4 is more focused on teaching how a Paxos-backed replicated state machine can preserve correctness during shard migration and transaction processing.
+Go Lab 5 is more focused on teaching how a Raft-backed replicated state machine can be extended to support sharding. CS7xx0 Lab 4 is more focused on teaching how a Paxos-backed replicated state machine can preserve correctness during shard migration and transaction processing.
 
 ## 2.2 What Scenarios the Two Labs Actually Handle
 
-In simplified terms, Go Lab 5 implements a **dynamically sharded replicated KV store**. CS7210 Lab 4 implements a **dynamically sharded replicated KV store plus cross-shard and cross-group transactions**.
+In simplified terms, Go Lab 5 implements a **dynamically sharded replicated KV store**. CS7xx0 Lab 4 implements a **dynamically sharded replicated KV store plus cross-shard and cross-group transactions**.
 
-The main focus of Go Lab 5 is to place ordinary KV operations, configuration changes, and shard migration into the Raft-backed replicated state machine and give them a consistent order. CS7210 Lab 4 handles these same broad categories of problems, but additionally implements an application-level transaction protocol on top of Paxos.
+The main focus of Go Lab 5 is to place ordinary KV operations, configuration changes, and shard migration into the Raft-backed replicated state machine and give them a consistent order. CS7xx0 Lab 4 handles these same broad categories of problems, but additionally implements an application-level transaction protocol on top of Paxos.
 
 The first system mainly answers:
 
@@ -759,7 +759,7 @@ During this period, if a client continues sending requests for `"apple"`, the sy
 
 Go Lab 5 orders configuration updates, shard-transfer-related state changes, and client operations through Raft so that replicas inside each group have a consistent understanding of when they should stop serving a shard and when they are allowed to begin serving it.
 
-CS7210 Lab 4 must handle a similar shard-migration process. However, because its underlying consensus layer is Paxos and because the implementation exposes more explicit protocol state, it maintains more visible shard lifecycle states.
+CS7xx0 Lab 4 must handle a similar shard-migration process. However, because its underlying consensus layer is Paxos and because the implementation exposes more explicit protocol state, it maintains more visible shard lifecycle states.
 
 For example, a shard may be:
 
@@ -781,7 +781,7 @@ Now consider failures. Suppose `group1` has three replicas, A, B, and C. A is th
 
 Go Lab 5 relies on Raft. If the operation has already been replicated to a majority and committed, the new leader preserves it. If it has not been committed, it may be discarded or overwritten according to Raft's log-reconciliation rules. The client retries, and the request eventually enters Raft again.
 
-CS7210 Lab 4 relies on Paxos. If a slot has already been accepted by a majority but the chosen result has not yet been learned and propagated normally, a new leader must use Paxos Phase 1 to recover the relevant history. It must determine whether the slot already has an accepted value that constrains future proposals. It cannot simply overwrite the slot.
+CS7xx0 Lab 4 relies on Paxos. If a slot has already been accepted by a majority but the chosen result has not yet been learned and propagated normally, a new leader must use Paxos Phase 1 to recover the relevant history. It must determine whether the slot already has an accepted value that constrains future proposals. It cannot simply overwrite the slot.
 
 In other words, failure recovery in Go Lab 5 is centered more around:
 
@@ -791,7 +791,7 @@ commitIndex
 nextIndex
 ```
 
-Failure recovery in CS7210 Lab 4 is centered more around:
+Failure recovery in CS7xx0 Lab 4 is centered more around:
 
 ```text
 ballot
@@ -800,7 +800,7 @@ chosen slot
 hole recovery
 ```
 
-Finally, consider transactions. This is a major area of functionality that CS7210 Lab 4 has and the standard Go Lab 5 shardkv does not.
+Finally, consider transactions. This is a major area of functionality that CS7xx0 Lab 4 has and the standard Go Lab 5 shardkv does not.
 
 Suppose a transaction needs to perform:
 
@@ -814,7 +814,7 @@ If A and B belong to the same shard or the same group, the operation is relative
 
 The system cannot allow one group to successfully subtract the money while another group fails to add it.
 
-The transaction logic in CS7210 Lab 4 exists to solve exactly this problem. The coordinator first sends `prepare` requests to all participating shards or groups. Each participant checks whether it can execute the transaction, locks the relevant keys or shards, and records the pending transaction state.
+The transaction logic in CS7xx0 Lab 4 exists to solve exactly this problem. The coordinator first sends `prepare` requests to all participating shards or groups. Each participant checks whether it can execute the transaction, locks the relevant keys or shards, and records the pending transaction state.
 
 If every participant agrees, the coordinator sends `commit`.
 
@@ -826,7 +826,7 @@ Therefore, the scenarios can be summarized as follows:
 
 **Go Lab 5 primarily handles a key space distributed across multiple replica groups, dynamic shard reassignment caused by groups joining or leaving, and maintaining linearizable client behavior while shards migrate.**
 
-**CS7210 Lab 4 handles shard ownership, configuration changes, data migration, and consistency inside replica groups, while additionally supporting transaction atomicity across shards and groups: operations on multiple shards must either all succeed or all fail.**
+**CS7xx0 Lab 4 handles shard ownership, configuration changes, data migration, and consistency inside replica groups, while additionally supporting transaction atomicity across shards and groups: operations on multiple shards must either all succeed or all fail.**
 
 
 ## 2.3 Differences Between the Two Design Philosophies
@@ -1529,7 +1529,7 @@ In reality, the Java code already sits somewhere between the two design styles r
 In other words, the implementation already has a **Log-centric skeleton**. The main difference is that a relatively thick **protocol-state layer** still surrounds that skeleton.
 
 
-## 2.4 Additional Transaction Processing Logic in CS7210
+## 2.4 Additional Transaction Processing Logic in CS7xx0
 
 The additional logic in the Java transaction implementation is fundamentally another layer built on top of ordinary ShardKV:
 
